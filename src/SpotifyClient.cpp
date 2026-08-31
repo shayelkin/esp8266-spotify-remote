@@ -64,7 +64,7 @@ uint16_t SpotifyClient::update(SpotifyData *data, SpotifyAuth *auth) {
   while (!wifiClient->available()) {
     executeCallback();
     retryCounter++;
-    if (retryCounter > 10) {
+    if (retryCounter > 500) {
       return 0;
     }
     delay(10);
@@ -144,7 +144,7 @@ uint16_t SpotifyClient::playerCommand(SpotifyAuth *auth, String method, String c
     executeCallback();
 
     retryCounter++;
-    if (retryCounter > 10) {
+    if (retryCounter > 500) {
       return 0;
     }
     delay(10);
