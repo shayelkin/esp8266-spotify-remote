@@ -1,0 +1,44 @@
+name: Build firmware
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio
+
+      - name: Cache dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.platformio/lib
+            ~/.platformio/packages
+            ~/.platformio/platforms
+            .pio/libdeps
+            .pio/build/*/lib*
+            .pio/build/*/FrameworkArduino
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini', 'platformio.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Create CI configuration
+        run: cp include/secrets.h.example include/secrets.h
+
+      - name: Build firmware
+        run: pio run
