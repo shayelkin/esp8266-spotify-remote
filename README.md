@@ -1,7 +1,5 @@
 # ThingPulse esp8266-spotify-remote
 
-[![ThingPulse logo](https://thingpulse.com/assets/ThingPulse-w300.svg)](https://thingpulse.com)
-
 ## Purpose of this project
 
 This project lets you control a Spotify player (phone, browser, etc) from an ESP8266. Title and artist name, along with playback
@@ -11,12 +9,21 @@ paused, played and skipped to the next or previous song in the playlist using th
 A full OAuth 2.0 web flow is used to acquire the necessary access and refresh tokens to permit the user to control the player. The device
 serves its OAuth callback directly over HTTPS with a self-signed certificate, so no proxy is required.
 
+## About this fork
+
+This original project was designed for [ThingPulse ESP8266 Color
+Kit](https://thingpulse.com/product/esp8266-wifi-color-display-kit-2-4/), which I didn't have. But
+I had a spare [DSTIKE Deauther MINI](https://dstike.com/products/dstike-wifi-deauther-mini)
+device. I ported this project to that device, updated it to use
+[PlatformIO](https://platformio.org/) as a build environment, and migrated it to serve the OAuth
+webflow over HTTPS, [which is required by Spotify since April 2025](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
+
 ## Features
 
- - Now playing screen: title, artist, playback progress
+ - Now playing screen: title, artist, album name, playback progress
  - Control playback with buttons: Play/Pause, Next, Prev
  - WS2812B status LED (connecting, authenticating, playing, paused, error)
- - Authentication and Authorization (OAuth 2.0 flow) On device.
+ - Authentication and authorization (OAuth 2.0 flow) on device
 
 ## Recommended Hardware
 
@@ -33,11 +40,6 @@ Pin assignments live in [`include/pins.h`](include/pins.h).
 
 Please see our [Guidelines](CONTRIBUTING.md) if you want to contribute to this project. Contributions are more than welcome!
 
-## Service level promise
-
-<table><tr><td><img src="https://thingpulse.com/assets/ThingPulse-open-source-community.png" width="150">
-</td><td>This is a ThingPulse <em>community</em> project. See our <a href="https://thingpulse.com/about/open-source-commitment/">open-source commitment declaration</a> for what this means.</td></tr></table>
-
 ## Setup Instructions
 
 ### Precondition
@@ -53,29 +55,24 @@ This project builds with [PlatformIO](https://platformio.org/install/cli). Insta
 
 ### Get Access to the Spotify API
 
-1. Go to [https://developer.spotify.com/dashboard/login](https://developer.spotify.com/dashboard/login) and login to or sign up for the Spotify Developer Dashboard
+1. Go to
+[https://developer.spotify.com/dashboard/login](https://developer.spotify.com/dashboard/login) and
+login to or sign up for the Spotify Developer Dashboard.
 
-2. Click on "My New App"
-<img src="./images/SpotifyDashboard.png" width="400">
+2. Click on "Create app".
 
-3. Fill out the form. Give your new app a name you can attribute to this project. It's safe to select "I don't know" for the type of application.
-<img src="./images/SpotifyAppSignUp1.png" width="400">
+3. Fill out the form. Give your new app a name you can attribute to this project.
 
-4. At the end of the 3 steps click "Submit"
-<img src="./images/SpotifyppSignUp3.png" width="400">
+4. In the "Redirect URIs" field, add `https://<espotifierNodeName>.local/callback/` as the Redirect URI. Set that same URL, URL-encoded, as `redirectUri` in `include/secrets.h`, and set
+   `espotifierNodeName` to the hostname the device should listen on.
 
-5. Set the unique Client ID and Client Secret as values for the respective variables in `include/secrets.h`
-<img src="./images/SpotifyCredentials.png" width="400">
+5. Read and agree to the terms, and submit the form.
 
-6. Click on "Edit Settings" and add `https://<espotifierNodeName>.local/callback/` as the Redirect URI. Set that same URL,
-   URL-encoded, as `redirectUri` in `include/secrets.h`, and set `espotifierNodeName` to the hostname the device should listen on.
-   The on-device certificate is self-signed; when the browser reaches the callback, accept its certificate warning to complete OAuth.
+6. Copy the "Client ID" and "Client secret", and update them in `include/secrets.h`.
 
-   **NOTE** If you're running more than one of these devices in the same WiFi network you should choose a unique `espotifierNodeName`.
-<img src="./images/SpotifyAppSettings.png" width="400">
-
-7. Don't forget to save your settings.
-<img src="./images/SpotifyAppSettingsSave.png" width="400">
+**NOTE** If you're running more than one of these devices in the same WiFi network you should
+  choose a unique `espotifierNodeName`. You can share the same client ID and secret, as you can add
+  multiple redirect URIs to the same app.
 
 ### Compile and run the application
 
@@ -90,6 +87,5 @@ After all this configuration it's about time to run the application!
    ```
 
 3. When you run this the first time you'll have to go through additional steps. The display will ask you to open a browser at a specific HTTPS location. Accept the self-signed certificate warning, then continue to Spotify's authorization dialog. Spotify redirects directly back to the device when authorization completes.
-<img src="./images/SpotifyConnectScreen.png" width="400">
 
 4. Now open your Spotify player and start a song. If everything worked out you'll see the song information on the OLED screen!
