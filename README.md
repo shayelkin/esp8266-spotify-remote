@@ -8,10 +8,8 @@ This project lets you control a Spotify player (phone, browser, etc) from an ESP
 progress, are fetched from Spotify's Web API over WiFi and shown on a SH1106 128x64 OLED display. The currently played song can be
 paused, played and skipped to the next or previous song in the playlist using three physical buttons.
 
-A full OAuth 2.0 web flow is used to acquire the necessary access and refresh tokens to permit the user to control the player. In order to
-run this project on your device you will have to setup an application on Spotify's developer dashboard. Spotify requires the OAuth
-redirect URI to be HTTPS (or `http://127.0.0.1`), so this project's on-device callback server is reached via a proxy you run
-yourself that forwards Spotify's redirect on to the device over your LAN — see the Spotify dashboard setup step below.
+A full OAuth 2.0 web flow is used to acquire the necessary access and refresh tokens to permit the user to control the player. The device
+serves its OAuth callback directly over HTTPS with a self-signed certificate, so no proxy is required.
 
 ## Features
 
@@ -69,10 +67,9 @@ This project builds with [PlatformIO](https://platformio.org/install/cli). Insta
 5. Set the unique Client ID and Client Secret as values for the respective variables in `include/secrets.h`
 <img src="./images/SpotifyCredentials.png" width="400">
 
-6. Click on "Edit Settings". Spotify requires the Redirect URI to be HTTPS (or `http://127.0.0.1`), so add the HTTPS URL of a proxy
-   you control that forwards the redirect on to `http://<espotifierNodeName>.local/callback/?code=...` on your LAN. Set that same
-   HTTPS URL as `redirectUri` in `include/secrets.h` (URL-encoded), and set `espotifierNodeName` in `include/secrets.h` to whatever
-   hostname the device should listen on.
+6. Click on "Edit Settings" and add `https://<espotifierNodeName>.local/callback/` as the Redirect URI. Set that same URL,
+   URL-encoded, as `redirectUri` in `include/secrets.h`, and set `espotifierNodeName` to the hostname the device should listen on.
+   The on-device certificate is self-signed; when the browser reaches the callback, accept its certificate warning to complete OAuth.
 
    **NOTE** If you're running more than one of these devices in the same WiFi network you should choose a unique `espotifierNodeName`.
 <img src="./images/SpotifyAppSettings.png" width="400">
@@ -92,7 +89,7 @@ After all this configuration it's about time to run the application!
    pio run -t upload --upload-port /dev/tty.YOUR_SERIAL_PORT
    ```
 
-3. When you run this the first time you'll have to go through additional steps. The display will ask you to open a browser at a specific location. This will redirect you to Spotify's authorization dialog, and afterwards through your proxy back to the device.
+3. When you run this the first time you'll have to go through additional steps. The display will ask you to open a browser at a specific HTTPS location. Accept the self-signed certificate warning, then continue to Spotify's authorization dialog. Spotify redirects directly back to the device when authorization completes.
 <img src="./images/SpotifyConnectScreen.png" width="400">
 
 4. Now open your Spotify player and start a song. If everything worked out you'll see the song information on the OLED screen!

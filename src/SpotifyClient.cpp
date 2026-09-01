@@ -26,8 +26,10 @@
 #include <ESP8266mDNS.h>
 
 #include "SpotifyClient.h"
+#include "OAuthTlsCertificate.h"
 
-SpotifyClient::SpotifyClient(String clientId, String clientSecret, String redirectUri, WiFiClientSecure *wifiClient) {
+SpotifyClient::SpotifyClient(String clientId, String clientSecret, String redirectUri, WiFiClientSecure *wifiClient)
+    : server(443) {
   this->clientId = clientId;
   this->clientSecret = clientSecret;
   this->redirectUri = redirectUri;
@@ -133,7 +135,7 @@ uint16_t SpotifyClient::playerCommand(SpotifyAuth *auth, String method, String c
   String request = method + " " + url + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" +
                "Authorization: Bearer " + auth->accessToken + "\r\n" +
-               "Content-Length: 0\r\n" + 
+               "Content-Length: 0\r\n" +
                "Connection: close\r\n\r\n";
   // This will send the request to the server
   Serial.println(request);
@@ -189,7 +191,7 @@ void SpotifyClient::getToken(SpotifyAuth *auth, String grantType, String code) {
   isDataCall = false;
   JsonStreamingParser parser;
   parser.setListener(this);
-  
+
   // https://accounts.spotify.com/api/token
   const char *host = "accounts.spotify.com";
   const int port = 443;
@@ -212,9 +214,9 @@ void SpotifyClient::getToken(SpotifyAuth *auth, String grantType, String code) {
   String request = String("POST ") + url + " HTTP/1.1\r\n" +
                "Host: " + host + "\r\n" +
                "Authorization: Basic " + authorization + "\r\n" +
-               "Content-Length: " + String(content.length()) + "\r\n" + 
-               "Content-Type: application/x-www-form-urlencoded\r\n" + 
-               "Connection: close\r\n\r\n" + 
+               "Content-Length: " + String(content.length()) + "\r\n" +
+               "Content-Type: application/x-www-form-urlencoded\r\n" +
+               "Connection: close\r\n\r\n" +
                content;
   Serial.println(request);
   wifiClient->print(request);
@@ -252,9 +254,13 @@ String SpotifyClient::startConfigPortal(const String mDnsName) {
   String oneWayCode = "";
 
   Serial.println("Starting config portal");
+  server.getServer().setECCert(
+      new BearSSL::X509List(OAUTH_TLS_CERTIFICATE),
+      BR_KEYTYPE_KEYX | BR_KEYTYPE_SIGN,
+      new BearSSL::PrivateKey(OAUTH_TLS_PRIVATE_KEY));
   server.on("/", [this]() {
     Serial.println("Serving resource '/'");
-    Serial.println("Sending HTTP 302 to Spotify");
+    Serial.println("Sending HTTPS 302 to Spotify");
     server.sendHeader(
         "Location",
         String("https://accounts.spotify.com/authorize/?client_id=" +
@@ -280,13 +286,13 @@ String SpotifyClient::startConfigPortal(const String mDnsName) {
 
   server.begin();
 
-  Serial.println("HTTP server started");
+  Serial.println("HTTPS server started");
 
   if (!MDNS.begin(mDnsName)) {
     Serial.println("Error setting up MDNS responder!");
   }
   Serial.println("MDNS responder started");
-  Serial.println("Open browser at http://" + mDnsName + ".local");
+  Serial.println("-> https://" + mDnsName + ".local");
 
   while (oneWayCode == "") {
     MDNS.update();
@@ -294,7 +300,7 @@ String SpotifyClient::startConfigPortal(const String mDnsName) {
     yield();
   }
 
-  Serial.println("Stopping HTTP server");
+  Serial.println("Stopping HTTPS server");
   server.stop();
   Serial.println("Stopping MDNS responder");
   MDNS.close();

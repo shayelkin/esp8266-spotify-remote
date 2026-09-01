@@ -25,7 +25,7 @@
 #include <Arduino.h>
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
-#include <ESP8266WebServer.h>
+#include <ESP8266WebServerSecure.h>
 #include <WiFiClientSecure.h>
 #include <FS.h>
 #include <base64.h>
@@ -142,7 +142,7 @@ class SpotifyClient: public JsonListener {
     String clientSecret;
     String redirectUri;
     WiFiClientSecure *wifiClient;
-    ESP8266WebServer server;
+    BearSSL::ESP8266WebServerSecure server;
   
     String getRootPath();
     void executeCallback();
