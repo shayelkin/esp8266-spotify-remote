@@ -1,4 +1,6 @@
-# ThingPulse esp8266-spotify-remote
+# (Forked from) ThingPulse esp8266-spotify-remote
+
+![A DSTIKE Deauther MINI board running the firmware in this repo](device_demo.jpg)
 
 ## Purpose of this project
 
