@@ -63,6 +63,7 @@ typedef struct SpotifyData {
   // id = 0n94vC3S9c3mb2HyNAOcjg
   // name = The Head and the Heart item.album.artists.name
   String artistName;
+  String albumName;
   // type = artist
   // uri = spotify:artist:0n94vC3S9c3mb2HyNAOcjg
   // Starting new object: external_urls

@@ -34,18 +34,20 @@
 #include "secrets.h"
 
 #define BUTTON_ACTION_COOLDOWN_MS 250
+#define SONG_TITLE_DURATION_MS 5000UL
+#define ALBUM_NAME_DURATION_MS 2000UL
 
 void setClock();
 String formatTime(uint32_t time);
 void saveRefreshToken(String refreshToken);
 String loadRefreshToken();
 void displayLogo();
-void drawProgress(uint64_t progressMs, uint64_t durationMs, String songTitle, String artistName, boolean isPlaying, boolean isPlayerActive);
+void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstLine, const String &artistName, boolean isPlaying, boolean isPlayerActive);
 
 void drawSongInfo();
 DrawingCallback drawSongInfoCallback = &drawSongInfo;
 
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, U8X8_PIN_NONE);
 Adafruit_NeoPixel statusLed(1, PIN_WS2812, NEO_GRB + NEO_KHZ800);
 
 #define COLOR_WIFI_CONNECTING statusLed.Color(0, 0, 255)
@@ -66,7 +68,9 @@ SpotifyData data;
 SpotifyAuth auth;
 
 uint32_t lastDrawingUpdate = 0;
-uint16_t counter = 0;
+unsigned long firstLineShownSince = 0;
+bool showingSongTitle = true;
+bool playerWasActive = false;
 long lastUpdate = 0;
 uint32_t lastSelectMillis = 0;
 uint32_t lastUpMillis = 0;
@@ -98,7 +102,7 @@ void setup() {
   wifiClient.setInsecure();
 
   statusLed.begin();
-  statusLed.show();
+  statusLed.setBrightness(54);
   setStatusColor(COLOR_WIFI_CONNECTING);
 
   pinMode(PIN_BTN_SELECT, INPUT_PULLUP);
@@ -237,11 +241,22 @@ void drawSongInfo() {
   if (data.isPlaying) {
     timeSinceUpdate = millis() - lastUpdate;
   }
-  drawProgress(_min(data.progressMs + timeSinceUpdate, data.durationMs), data.durationMs, data.title, data.artistName, data.isPlaying, data.isPlayerActive);
+  if (data.isPlayerActive && !playerWasActive) {
+    showingSongTitle = true;
+    firstLineShownSince = millis();
+  }
+  playerWasActive = data.isPlayerActive;
+  unsigned long now = millis();
+  unsigned long displayDuration = showingSongTitle ? SONG_TITLE_DURATION_MS : ALBUM_NAME_DURATION_MS;
+  if (now - firstLineShownSince >= displayDuration) {
+    showingSongTitle = !showingSongTitle;
+    firstLineShownSince = now;
+  }
+  const String &firstLine = showingSongTitle || data.albumName == "" ? data.title : data.albumName;
+  drawProgress(_min(data.progressMs + timeSinceUpdate, data.durationMs), data.durationMs, firstLine, data.artistName, data.isPlaying, data.isPlayerActive);
 }
 
-void drawProgress(uint64_t progressMs, uint64_t durationMs, String songTitle, String artistName, boolean isPlaying, boolean isPlayerActive) {
-  counter++;
+void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstLine, const String &artistName, boolean isPlaying, boolean isPlayerActive) {
 
   if (!isPlayerActive) {
     displayLogo();
@@ -251,14 +266,7 @@ void drawProgress(uint64_t progressMs, uint64_t durationMs, String songTitle, St
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
 
-  String animatedTitle = songTitle;
-  uint8_t maxChar = 20;
-  if (songTitle.length() > maxChar) {
-    uint8_t excessChars = songTitle.length() - maxChar;
-    uint8_t currentPos = counter % excessChars;
-    animatedTitle = songTitle.substring(currentPos, currentPos + maxChar);
-  }
-  u8g2.drawStr((128 - u8g2.getStrWidth(animatedTitle.c_str())) / 2, 9, animatedTitle.c_str());
+  u8g2.drawStr((128 - u8g2.getStrWidth(firstLine.c_str())) / 2, 9, firstLine.c_str());
 
   u8g2.setFont(u8g2_font_5x8_tf);
   u8g2.drawStr((128 - u8g2.getStrWidth(artistName.c_str())) / 2, 20, artistName.c_str());

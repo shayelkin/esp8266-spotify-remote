@@ -345,8 +345,11 @@ void SpotifyClient::value(String value) {
       data->durationMs = value.toInt();
     }
     // name = Lost in My MindString name;
-    if (currentKey == "name") {
+    if (rootPath == "item.name") {
       data->title = value;
+    }
+    if (rootPath == "item.album.name") {
+      data->albumName = value;
     }
     // is_playing = true boolean isPlaying;
     if (currentKey == "is_playing") {
