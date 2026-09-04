@@ -34,8 +34,8 @@
 #include "secrets.h"
 
 #define BUTTON_ACTION_COOLDOWN_MS 250
-#define SONG_TITLE_DURATION_MS 5000UL
-#define ALBUM_NAME_DURATION_MS 2000UL
+#define SONG_TITLE_DURATION_MS 10000UL
+#define ALBUM_NAME_DURATION_MS 5000UL
 #define IDLE_SLEEP_TIMEOUT_MS (2UL * 60UL * 1000UL)
 #define SLEEP_BUTTON_HOLD_MS 1500UL
 #define SCROLL_SPEED_PX_PER_SEC 20.0f
@@ -46,7 +46,7 @@ String formatTime(uint32_t time);
 void saveRefreshToken(String refreshToken);
 String loadRefreshToken();
 void displayLogo();
-void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstLine, const String &artistName, boolean isPlaying, boolean isPlayerActive);
+void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &title, const String &secondLine, boolean isPlaying, boolean isPlayerActive);
 
 void drawSongInfo();
 DrawingCallback drawSongInfoCallback = &drawSongInfo;
@@ -288,11 +288,11 @@ void drawSongInfo() {
     showingSongTitle = !showingSongTitle;
     firstLineShownSince = now;
   }
-  const String &firstLine = showingSongTitle || data.albumName == "" ? data.title : data.albumName;
-  drawProgress(_min(data.progressMs + timeSinceUpdate, data.durationMs), data.durationMs, firstLine, data.artistName, data.isPlaying, data.isPlayerActive);
+  const String &secondLine = showingSongTitle || data.albumName == "" ? data.artistName : data.albumName;
+  drawProgress(_min(data.progressMs + timeSinceUpdate, data.durationMs), data.durationMs, data.title, secondLine, data.isPlaying, data.isPlayerActive);
 }
 
-void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstLine, const String &artistName, boolean isPlaying, boolean isPlayerActive) {
+void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &title, const String &secondLine, boolean isPlaying, boolean isPlayerActive) {
 
   if (!isPlayerActive) {
     displayLogo();
@@ -301,10 +301,10 @@ void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstL
 
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
-  drawScrollingLine(0, 128, 9, 0, 10, firstLine, titleLineScrollStart, titleLineLastText);
+  drawScrollingLine(0, 128, 9, 0, 10, title, titleLineScrollStart, titleLineLastText);
 
   u8g2.setFont(u8g2_font_5x8_tf);
-  drawScrollingLine(0, 128, 20, 11, 23, artistName, artistLineScrollStart, artistLineLastText);
+  drawScrollingLine(0, 128, 20, 11, 23, secondLine, artistLineScrollStart, artistLineLastText);
 
   uint8_t percentage = 100.0 * progressMs / durationMs;
   uint16_t barX = 4, barW = 120, barY = 34;
