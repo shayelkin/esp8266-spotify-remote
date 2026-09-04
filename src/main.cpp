@@ -38,6 +38,8 @@
 #define ALBUM_NAME_DURATION_MS 2000UL
 #define IDLE_SLEEP_TIMEOUT_MS (2UL * 60UL * 1000UL)
 #define SLEEP_BUTTON_HOLD_MS 1500UL
+#define SCROLL_SPEED_PX_PER_SEC 20.0f
+#define SCROLL_PAUSE_MS 1200UL
 
 void setClock();
 String formatTime(uint32_t time);
@@ -48,6 +50,7 @@ void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstL
 
 void drawSongInfo();
 DrawingCallback drawSongInfoCallback = &drawSongInfo;
+void drawScrollingLine(uint8_t x0, uint8_t x1, uint8_t y, uint8_t clipYTop, uint8_t clipYBottom, const String &text, unsigned long &scrollStartMillis, String &lastText);
 
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, U8X8_PIN_NONE);
 Adafruit_NeoPixel statusLed(1, PIN_WS2812, NEO_GRB + NEO_KHZ800);
@@ -79,6 +82,10 @@ uint32_t lastDownMillis = 0;
 bool isIdle = false;
 uint32_t idleSince = 0;
 uint32_t selectPressStartMillis = 0;
+unsigned long titleLineScrollStart = 0;
+String titleLineLastText = "";
+unsigned long artistLineScrollStart = 0;
+String artistLineLastText = "";
 
 bool buttonPressed(uint8_t pin, uint32_t &lastActionMillis) {
   if (digitalRead(pin) == LOW && millis() - lastActionMillis > BUTTON_ACTION_COOLDOWN_MS) {
@@ -294,11 +301,10 @@ void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstL
 
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
-
-  u8g2.drawStr((128 - u8g2.getStrWidth(firstLine.c_str())) / 2, 9, firstLine.c_str());
+  drawScrollingLine(0, 128, 9, 0, 10, firstLine, titleLineScrollStart, titleLineLastText);
 
   u8g2.setFont(u8g2_font_5x8_tf);
-  u8g2.drawStr((128 - u8g2.getStrWidth(artistName.c_str())) / 2, 20, artistName.c_str());
+  drawScrollingLine(0, 128, 20, 11, 23, artistName, artistLineScrollStart, artistLineLastText);
 
   uint8_t percentage = 100.0 * progressMs / durationMs;
   uint16_t barX = 4, barW = 120, barY = 34;
@@ -318,6 +324,42 @@ void drawProgress(uint64_t progressMs, uint64_t durationMs, const String &firstL
   }
 
   u8g2.sendBuffer();
+}
+
+// Draws `text` centered within [x0, x1) at baseline y. If it's too wide to fit,
+// scrolls it left instead, pausing briefly at the start and end of each pass.
+// Scroll position is time-based (not frame-based) and resets whenever the text changes.
+void drawScrollingLine(uint8_t x0, uint8_t x1, uint8_t y, uint8_t clipYTop, uint8_t clipYBottom, const String &text, unsigned long &scrollStartMillis, String &lastText) {
+  uint16_t boxWidth = x1 - x0;
+  uint16_t textWidth = u8g2.getStrWidth(text.c_str());
+
+  if (text != lastText) {
+    lastText = text;
+    scrollStartMillis = millis();
+  }
+
+  if (textWidth <= boxWidth) {
+    u8g2.drawStr(x0 + (boxWidth - textWidth) / 2, y, text.c_str());
+    return;
+  }
+
+  uint16_t scrollDistance = textWidth - boxWidth;
+  unsigned long scrollDurationMs = scrollDistance / SCROLL_SPEED_PX_PER_SEC * 1000UL;
+  unsigned long cycleLength = 2 * SCROLL_PAUSE_MS + scrollDurationMs;
+  unsigned long elapsed = (millis() - scrollStartMillis) % cycleLength;
+
+  int16_t offset;
+  if (elapsed < SCROLL_PAUSE_MS) {
+    offset = 0;
+  } else if (elapsed < SCROLL_PAUSE_MS + scrollDurationMs) {
+    offset = (elapsed - SCROLL_PAUSE_MS) * SCROLL_SPEED_PX_PER_SEC / 1000UL;
+  } else {
+    offset = scrollDistance;
+  }
+
+  u8g2.setClipWindow(x0, clipYTop, x1, clipYBottom);
+  u8g2.drawStr(x0 - offset, y, text.c_str());
+  u8g2.setMaxClipWindow();
 }
 
 void displayLogo() {
