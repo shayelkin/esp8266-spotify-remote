@@ -36,6 +36,8 @@
 #define BUTTON_ACTION_COOLDOWN_MS 250
 #define SONG_TITLE_DURATION_MS 5000UL
 #define ALBUM_NAME_DURATION_MS 2000UL
+#define IDLE_SLEEP_TIMEOUT_MS (2UL * 60UL * 1000UL)
+#define SLEEP_BUTTON_HOLD_MS 1500UL
 
 void setClock();
 String formatTime(uint32_t time);
@@ -72,9 +74,11 @@ unsigned long firstLineShownSince = 0;
 bool showingSongTitle = true;
 bool playerWasActive = false;
 long lastUpdate = 0;
-uint32_t lastSelectMillis = 0;
 uint32_t lastUpMillis = 0;
 uint32_t lastDownMillis = 0;
+bool isIdle = false;
+uint32_t idleSince = 0;
+uint32_t selectPressStartMillis = 0;
 
 bool buttonPressed(uint8_t pin, uint32_t &lastActionMillis) {
   if (digitalRead(pin) == LOW && millis() - lastActionMillis > BUTTON_ACTION_COOLDOWN_MS) {
@@ -82,6 +86,14 @@ bool buttonPressed(uint8_t pin, uint32_t &lastActionMillis) {
     return true;
   }
   return false;
+}
+
+void enterSleep() {
+  u8g2.setPowerSave(1);
+  statusLed.setPixelColor(0, 0);
+  statusLed.show();
+  Serial.println("Entering deep sleep. Wake with RST.");
+  ESP.deepSleep(0);
 }
 
 void printFreeHeap(String msg) {
@@ -191,16 +203,33 @@ void loop() {
       setStatusColor(data.isPlaying ? COLOR_PLAYING : COLOR_PAUSED);
     } else {
       setStatusColor(COLOR_IDLE);
+      if (!isIdle) {
+        isIdle = true;
+        idleSince = millis();
+      } else if (millis() - idleSince > IDLE_SLEEP_TIMEOUT_MS) {
+        enterSleep();
+      }
+    }
+    if (data.isPlayerActive) {
+      isIdle = false;
     }
   }
   drawSongInfo();
 
-  if (buttonPressed(PIN_BTN_SELECT, lastSelectMillis)) {
-    String command = data.isPlaying ? "pause" : "play";
-    data.isPlaying = !data.isPlaying;
-    uint16_t responseCode = client.playerCommand(&auth, "PUT", command);
-    Serial.print("playerCommand response =");
-    Serial.println(responseCode);
+  bool selectDown = digitalRead(PIN_BTN_SELECT) == LOW;
+  if (selectDown && selectPressStartMillis == 0) {
+    selectPressStartMillis = millis();
+  } else if (selectDown && millis() - selectPressStartMillis >= SLEEP_BUTTON_HOLD_MS) {
+    enterSleep();
+  } else if (!selectDown && selectPressStartMillis != 0) {
+    if (millis() - selectPressStartMillis < SLEEP_BUTTON_HOLD_MS) {
+      String command = data.isPlaying ? "pause" : "play";
+      data.isPlaying = !data.isPlaying;
+      uint16_t responseCode = client.playerCommand(&auth, "PUT", command);
+      Serial.print("playerCommand response =");
+      Serial.println(responseCode);
+    }
+    selectPressStartMillis = 0;
   }
   if (buttonPressed(PIN_BTN_UP, lastUpMillis)) {
     uint16_t responseCode = client.playerCommand(&auth, "POST", "previous");
