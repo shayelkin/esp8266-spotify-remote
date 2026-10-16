@@ -20,6 +20,13 @@ device. I ported this project to that device, updated it to use
 [PlatformIO](https://platformio.org/) as a build environment, and migrated it to serve the OAuth
 webflow over HTTPS, [which is required by Spotify since April 2025](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
 
+### Acknowledging AI Use
+
+This fork was written with assistance from the following AI models:
+
+- Claude Sonnet 5 (Anthropic)
+- Claude Opus 5 (Anthropic)
+
 ## Features
 
  - Now playing screen: title, artist, album name, playback progress
